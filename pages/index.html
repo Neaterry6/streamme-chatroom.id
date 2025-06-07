@@ -9,7 +9,6 @@
     <style>
         body {
             font-family: 'Share Tech Mono', monospace;
-            transition: background 0.3s;
             background: linear-gradient(to bottom right, #000000, #1a202c, #2b6cb0);
             color: white;
         }
@@ -95,21 +94,21 @@
                     <button id="loginBtn" class="px-4 py-2 bg-blue-500 text-black font-bold rounded-full hover:bg-blue-600">Login</button>
                     <button id="signupBtn" class="px-4 py-2 bg-green-500 text-black font-bold rounded-full hover:bg-green-600">Signup</button>
                     <button id="profileBtn" class="px-4 py-2 bg-purple-500 text-black font-bold rounded-full hover:bg-purple-600">Profile</button>
-                    <a href="/pages/chatroom.html" class="px-4 py-2 bg-cyan-400 text-black font-bold rounded-full hover:bg-cyan-500">Chatroom</a>
+                    <a href="/pages/chatroom.html" class="px-4 py-2 bg-cyan-600 text-white font-bold rounded-lg hover:bg-cyan-700">Chatroom</a>
                 </div>
             </div>
         </header>
         <main class="max-w-screen-xl mx-auto p-4 text-center">
             <h1 class="text-4xl font-bold text-cyan-400 mb-6">Welcome to Stream Me ID</h1>
             <p class="text-lg">Connect with friends, create chatrooms, and share media in real-time!</p>
-            <button onclick="window.location.href='/pages/chatroom.html'" class="mt-6 px-6 py-3 bg-gradient-to-r from-cyan-400 to-purple-500 text-black font-bold rounded-full hover:from-cyan-500 hover:to-purple-600">Join the Chat</button>
+            <button onclick="window.location.href='/pages/chatroom.html'" class="mt-6 px-6 py-3 bg-gradient-to-r from-cyan-400 to-purple-600 text-white font-bold rounded-lg hover:bg-gradient-to-l">Join the Chatroom</button>
         </main>
         <!-- Login Modal -->
         <div id="loginModal" class="modal">
             <div class="modal-content">
                 <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Login</h2>
                 <form id="loginForm">
-                    <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-cyan-400">
                     <button type="submit" class="w-full p-3 bg-blue-500 text-black font-bold rounded-lg hover:bg-blue-600">Login</button>
                 </form>
                 <button class="w-full p-3 mt-4 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600" onclick="closeModal('loginModal')">Close</button>
@@ -120,8 +119,8 @@
             <div class="modal-content">
                 <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Signup</h2>
                 <form id="signupForm">
-                    <input type="text" id="signupUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
-                    <input type="email" id="signupEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <input type="text" id="signupUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-cyan-400">
+                    <input type="email" id="signupEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-cyan-400">
                     <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Signup</button>
                 </form>
                 <button class="w-full p-3 mt-4 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600" onclick="closeModal('signupModal')">Close</button>
@@ -136,9 +135,9 @@
                         <img src="" id="avatarPreview" class="w-24 h-24 rounded-full object-cover hidden">
                     </div>
                     <input type="file" id="avatar" accept="image/*" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg">
-                    <input type="text" id="profileUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
-                    <input type="email" id="profileEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
-                    <textarea id="profileBio" placeholder="Bio" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400"></textarea>
+                    <input type="text" id="profileUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-cyan-400">
+                    <input type="email" id="profileEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-cyan-400">
+                    <textarea id="profileBio" placeholder="Bio" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-cyan-400"></textarea>
                     <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Save</button>
                 </form>
                 <button id="logout" class="w-full p-3 mt-4 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600">Logout</button>
@@ -154,11 +153,24 @@
     const profileBtn = document.getElementById('profileBtn');
 
     // Initialize
-    setTimeout(() => {
-        loadingScreen.classList.add('opacity-0', 'pointer-events-none');
-        mainContent.classList.remove('opacity-0');
-        mainContent.classList.add('opacity-100');
-    }, 2000);
+    try {
+        setTimeout(() => {
+            if (loadingScreen && mainContent) {
+                loadingScreen.classList.add('opacity-0', 'pointer-events-none');
+                mainContent.classList.remove('opacity-0');
+                mainContent.classList.add('opacity-100');
+            } else {
+                console.error('Loading screen or main content not found:', { loadingScreen, mainContent });
+                document.body.style.display = 'block';
+            }
+        }, 2000);
+    } catch (error) {
+        console.error('Initialization error:', error);
+        if (loadingScreen && mainContent) {
+            loadingScreen.style.display = 'none';
+            mainContent.style.display = 'block';
+        }
+    }
 
     // Modal handling
     function openModal(modalId) {
