@@ -7,13 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             font-family: 'Share Tech Mono', monospace;
-            transition: background 0.3s;
+            margin: 0;
+            overflow: hidden;
         }
         .dark-theme {
-            background: linear-gradient(to bottom right, #000000, #1a202c, #2b6cb0);
+            background: linear-gradient(to bottom right, #0a0a0a, #1a202c, #2b6cb0);
             color: white;
         }
         .light-theme {
@@ -22,11 +24,10 @@
         }
         .glitch {
             position: relative;
-            font-size: 4rem;
-            font-weight: 800;
+            font-size: 3rem;
             text-transform: uppercase;
             color: white;
-            text-shadow: 0 0 5px #fff, 0 0 10px #00ffff, 0 0 15px #00ffff, 0 0 20px #00ffff;
+            text-shadow: 0 0 5px #fff, 0 0 10px #00ffff, 0 0 15px #00ffff;
             animation: glitchText 2s infinite;
         }
         .glitch::before,
@@ -36,7 +37,6 @@
             left: 0;
             top: 0;
             width: 100%;
-            height: 100%;
             color: #ff00ff;
             animation: glitchEffect 2s infinite;
         }
@@ -66,228 +66,293 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .background-logo {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 500px;
-            opacity: 0.05;
-            pointer-events: none;
-            z-index: -1;
+        .chat-container {
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            padding: 1rem;
         }
-        .modal {
+        .chat-message {
+            max-width: 70%;
+            margin: 0.5rem 1rem;
+            padding: 0.75rem;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .chat-message.sent {
+            background: #00bcd4;
+            color: black;
+            margin-left: auto;
+            border-bottom-right-radius: 0;
+        }
+        .chat-message.received {
+            background: #4a5568;
+            color: white;
+            margin-right: auto;
+            border-bottom-left-radius: 0;
+        }
+        .chat-message img, .chat-message audio {
+            max-width: 100%;
+            border-radius: 0.5rem;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .menu {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .menu.open {
+            transform: translateX(0);
+        }
+        .modal, .profile-menu {
             display: none;
             position: fixed;
+            z-index: 50;
+        }
+        .modal-content, .profile-menu-content {
+            background: #1a202c;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        .modal {
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.8);
-            z-index: 100;
             overflow-y: auto;
         }
         .modal-content {
-            background: #1a202c;
             margin: 5% auto;
-            padding: 20px;
-            width: 80%;
+            width: 90%;
             max-width: 400px;
-            border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
         }
-        .chat-message {
-            max-width: 70%;
-            margin: 8px;
-            padding: 10px;
-            border-radius: 8px;
-            word-wrap: break-word;
+        .profile-menu-content {
+            width: 200px;
+            animation: slideIn 0.2s ease-out;
         }
-        .chat-message img, .chat-message audio {
-            max-width: 100%;
-            border-radius: 8px;
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .chat-message.sent {
-            background: #00bcd4;
-            margin-left: auto;
-            color: black;
+        .user-select {
+            cursor: pointer;
+            transition: background 0.2s;
         }
-        .chat-message.received {
-            background: #4a5568;
-            margin-right: auto;
-            color: white;
-        }
-        .chat-container {
-            height: 70vh;
-            overflow-y: auto;
-            scroll-behavior: smooth;
+        .user-select:hover {
+            background: #2d3748;
         }
     </style>
 </head>
-<body class="min-h-screen dark-theme relative">
-    <img src="https://files.catbox.moe/d15q3r.png" alt="Stream Me ID Logo" class="background-logo">
+<body class="dark-theme">
     <div class="fixed top-0 left-0 w-full h-full bg-black flex flex-col justify-center items-center transition-opacity duration-500" id="loadingScreen">
         <img src="https://files.catbox.moe/d15q3r.png" alt="Stream Me ID Logo" class="logo-animation">
         <h1 class="glitch text-center mt-4" data-text="STREAM ME ID">STREAM ME ID</h1>
         <div class="w-12 h-12 border-4 border-gray-800 border-t-cyan-400 rounded-full animate-spin mt-4"></div>
     </div>
-    <div class="opacity-0 transition-opacity duration-500" id="mainContent">
-        <header class="bg-black bg-opacity-80 border-b border-gray-700 sticky top-0 z-50">
+    <div class="opacity-0 transition-opacity duration-500 h-screen flex flex-col" id="mainContent">
+        <!-- Header -->
+        <header class="bg-black bg-opacity-80 border-b border-gray-700 sticky top-0 z-40">
             <div class="max-w-screen-xl mx-auto flex items-center justify-between p-4">
-                <div class="text-2xl font-extrabold bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text">
+                <button id="menuBtn" class="text-white text-2xl"><i class="fas fa-bars"></i></button>
+                <div class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text">
                     🎵 Stream Me ID
                 </div>
-                <div class="flex gap-2 items-center">
-                    <button id="themeBtn" class="px-4 py-2 bg-gray-700 text-white font-bold rounded-full hover:bg-gray-600">Light Theme</button>
-                    <button id="profileBtn" class="px-4 py-2 bg-purple-500 text-black font-bold rounded-full hover:bg-purple-600">Profile</button>
-                    <button id="backBtn" class="px-4 py-2 bg-blue-500 text-black font-bold rounded-full hover:bg-blue-600">Back to Home</button>
+                <div class="flex gap-2">
+                    <button id="themeBtn" class="px-3 py-1 bg-gray-700 text-white rounded-full hover:bg-gray-600 text-sm">Light</button>
+                    <button id="profileBtn" class="px-3 py-1 bg-purple-500 text-white rounded-full hover:bg-purple-600 text-sm">Profile</button>
                 </div>
             </div>
         </header>
-        <main class="max-w-screen-xl mx-auto p-4">
-            <div class="flex flex-col md:flex-row gap-4">
-                <!-- Chatroom List -->
-                <div class="w-full md:w-1/4 bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-xl font-bold text-cyan-400 mb-4">Chatrooms</h2>
-                    <button id="createChatroomBtn" class="w-full p-2 mb-4 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Create Chatroom</button>
-                    <input type="text" id="joinChatroomInput" placeholder="Enter chatroom link..." class="w-full p-2 mb-4 bg-gray-900 text-white rounded-lg border border-gray-700 focus:outline-none">
-                    <button id="joinChatroomBtn" class="w-full p-2 mb-4 bg-blue-500 text-black font-bold rounded-lg hover:bg-blue-600">Join Chatroom</button>
-                    <ul id="chatroomList" class="space-y-2"></ul>
-                    <h2 class="text-xl font-bold text-cyan-400 mt-6 mb-4">DMs</h2>
-                    <ul id="dmList" class="space-y-2"></ul>
-                </div>
-                <!-- Chat Area -->
-                <div class="w-full md:w-3/4 bg-gray-800 rounded-lg p-4 flex flex-col">
-                    <h2 class="text-xl font-bold text-cyan-400 mb-4" id="chatTitle">Select a Chatroom or DM</h2>
-                    <div id="chatContainer" class="chat-container flex-1 p-4 bg-gray-900 rounded-lg overflow-y-auto"></div>
-                    <div class="mt-4 flex gap-2">
-                        <input type="text" id="messageInput" placeholder="Type a message..." class="flex-1 p-2 bg-gray-900 text-white rounded-lg border border-gray-700 focus:outline-none">
-                        <button id="sendMessageBtn" class="px-4 py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-cyan-500">Send</button>
-                        <input type="file" id="imageUpload" accept="image/*" class="hidden">
-                        <button id="imageUploadBtn" class="px-4 py-2 bg-purple-500 text-black font-bold rounded-lg hover:bg-purple-600">Image</button>
-                        <button id="recordVoiceBtn" class="px-4 py-2 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600">Record</button>
-                    </div>
-                </div>
+        <!-- Slide-in Menu -->
+        <nav id="menu" class="menu fixed top-0 left-0 h-full w-64 bg-gray-900 p-4 z-50 shadow-lg">
+            <button id="closeMenuBtn" class="text-white text-xl mb-2"><i class="fas fa-times"></i></button>
+            <h2 class="text-lg font-bold text-cyan-600 mb-4">Menu</h2>
+            <ul class="space-y-1">
+                <li><button id="createChatroomBtn" class="w-full p-2 bg-blue-500 text-gray-900 rounded-lg hover:bg-blue-600 text-left">Create Chatroom</button></li>
+                <li><button id="joinChatroomBtn" class="w-full p-2 bg-blue-600 text-gray-900 rounded-lg hover:bg-blue-700 text-left">Join Chatroom</button></li>
+                <li>
+                    <h3 class="text-sm font-bold text-cyan-400 mt-2 mb-1">Chatrooms</h3>
+                    <ul id="chatroomList" class="space-y-1"></ul>
+                </li>
+                <li>
+                    <h3 class="text-sm font-bold text-cyan-400 mt-2 mb-1">DMs</h3>
+                    <ul id="dmList" class="space-y-1"></ul>
+                </li>
+            </ul>
+        </nav>
+        <!-- Main Chat Area -->
+        <main class="flex-1 flex flex-col bg-gray-800">
+            <div class="p-4 border-b border-gray-700">
+                <h2 class="text-lg font-semibold text-cyan-600" id="chatTitle">Select a Chatroom or DM</h2>
+            </div>
+            <div id="chatContainer" class="chat-container flex-1"></div>
+            <div class="p-4 bg-gray-900 border-t border-gray-600 flex gap-2 items-center">
+                <input type="text" id="messageInput" placeholder="Type a message..." class="text-sm flex-1 p-2 bg-gray-700 text-white rounded-md border border-gray-500 focus:outline-none focus:border-cyan-500" />
+                <button id="sendMessageBtn" class="p-2 bg-cyan-600 text-gray-900 rounded-md hover:bg-cyan-700"><i class="fas fa-paper-plane"></i></button>
+                <input type="file" id="fileUpload" accept="image/*" class="hidden" />
+                <button id="imageUploadBtn" class="p-2 bg-purple-600 text-gray-900 rounded-md hover:bg-purple-700"><i class="fas fa-image"></i></button>
+                <button id="recordVoiceBtn" class="p-2 px-3 bg-blue-600 text-black rounded-md hover:bg-blue-700"><i class="fas fa-microphone"></i></button>
             </div>
         </main>
-        <!-- Profile Modal -->
-        <div id="profileModal" class="modal">
+        <!-- Modals -->
+        <div id="joinChatroomModal" class="modal">
             <div class="modal-content">
-                <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Profile</h2>
-                <form id="profileForm">
-                    <div class="flex justify-center mb-4">
-                        <img src="" id="avatarPreview" class="w-24 h-24 rounded-full object-cover hidden">
-                    </div>
-                    <input type="file" id="avatar" accept="image/*" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg">
-                    <input type="text" id="profileUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
-                    <input type="email" id="profileEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
-                    <textarea id="profileBio" placeholder="Bio" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400"></textarea>
-                    <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Save</button>
-                </form>
-                <button id="logout" class="w-full p-3 mt-4 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600">Logout</button>
-                <button class="w-full p-3 mt-4 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600" onclick="closeModal('profileModal')">Close</button>
+                <h2 class="text-xl font-semibold text-center text-cyan-600 mb-4">Join Chatroom</h2>
+                <input type="text" id="joinChatroomLink" placeholder="Enter chatroom link..." class="w-full p-2 mb-3 bg-gray-800 text-white rounded-md border border-gray-600 focus:outline-none focus:border-gray-400" />
+                <div class="flex gap-2">
+                    <button id="submitJoinChatroom" class="flex-1 p-2 bg-blue-600 text-gray-900 rounded-md hover:bg-blue-700">Join</button>
+                    <button class="flex-1 p-2 bg-gray-600 text-white rounded-md hover:bg-gray-700" onclick="closeModal('joinChatroomModal')">Close</button>
+                </div>
             </div>
         </div>
-        <!-- Create Chatroom Modal -->
-        <div id="createChatroomModal" class="modal">
+        <div id="createChatModal" class="modal">
             <div class="modal-content">
-                <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Create Chatroom</h2>
-                <form id="createChatroomForm">
-                    <input type="text" id="chatroomName" placeholder="Chatroom Name" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
-                    <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Create</button>
+                <h2 class="text-xl font-semibold text-center text-cyan-600 mb-4">Create Room</h2>
+                <form id="createChatForm">
+                    <input type="text" id="chatRoomName" placeholder="Room Name" class="w-full p-2 mb-3 bg-gray-800 text-white rounded-md border border-gray-600 focus:outline-none focus:border-gray-400" />
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 p-2 bg-blue-500 text-gray-900 rounded-md hover:bg-blue-600">Create</button>
+                        <button type="button" class="flex-1 p-2 bg-gray-600 text-white rounded-md hover:bg-gray-700" onclick="closeModal('createChatModal')">Close</button>
+                    </div>
                 </form>
-                <button class="w-full p-3 mt-4 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600" onclick="closeModal('createChatroomModal')">Close</button>
+            </div>
+        </div>
+        <div id="profileModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-semibold text-center text-cyan-600 mb-4">Your Profile</h2>
+                <form id="profileForm">
+                    <div class="flex justify-center mb-4">
+                        <img src="" id="profileAvatarPreview" class="w-24 h-24 rounded-full object-cover hidden" />
+                    </div>
+                    <input type="file" id="profileAvatarInput" accept="image/*" class="w-full p-2 mb-3 bg-gray-800 text-white rounded-md" />
+                    <input type="text" id="profileUsername" placeholder="Username" class="w-full p-2 mb-2 bg-gray-800 text-white rounded-md border border-gray-600 focus:outline-none focus:border-gray-400" />
+                    <input type="email" id="profileEmail" placeholder="Email" class="w-full p-2 mb-2 bg-gray-800 text-white rounded-md border border-gray-600 focus:outline-none focus:border-gray-400" />
+                    <textarea id="profileBio" placeholder="Bio" class="w-full p-2 mb-3 bg-gray-800 text-white rounded-md border border-gray-600 focus:outline-none focus:border-gray-400"></textarea>
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 p-2 bg-blue-500 text-gray-900 rounded-md hover:bg-blue-600">Save</button>
+                        <button type="button" id="logoutBtn" class="flex-1 p-2 bg-red-600 text-gray-100 rounded-md hover:bg-red-700">Logout</button>
+                    </div>
+                </form>
+                <button class="w-full p-2 mt-3 bg-gray-600 text-white rounded-md hover:bg-gray-700" onclick="closeModal('profileModal')">Close</button>
+            </div>
+        </div>
+        <div id="setNicknameModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-semibold text-center text-cyan-600 mb-4">Set Nickname</h2>
+                <form id="nicknameForm">
+                    <input type="text" id="nicknameInput" placeholder="Enter nickname..." class="w-full p-2 mb-3 bg-gray-800 text-white rounded-md border border-gray-600 focus:outline-none focus:border-gray-400" />
+                    <input type="hidden" id="nicknameTarget" />
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 p-2 bg-blue-500 text-gray-900 rounded-md hover:bg-blue-600">Set</button>
+                        <button type="button" class="flex-1 p-2 bg-gray-600 text-white rounded-md hover:bg-gray-700" onclick="closeModal('setNicknameModal')">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="viewProfileModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-semibold text-center text-cyan-600 mb-4">User Profile</h2>
+                <div class="flex justify-center mb-4">
+                    <img id="viewProfileAvatar" src="" class="w-24 h-24 rounded-full object-cover" />
+                </div>
+                <p class="text-center mb-2"><span class="font-bold">Username:</span> <span id="viewProfileUsername"></span></p>
+                <p class="text-center mb-2"><span class="font-bold">Nickname:</span> <span id="viewProfileNickname"></span></p>
+                <p class="text-center"><span class="font-bold">Bio:</span> <span id="viewProfileBio"></span></p>
+                <button class="w-full p-2 mt-2 bg-gray-600 text-white rounded-md hover:bg-gray-700" onclick="closeModal('viewProfileModal')">Close</button>
             </div>
         </div>
     </div>
 <script>
-    // Replace with your Vercel URL after deployment
     const socket = io('https://your-project-name.vercel.app', {
         transports: ['websocket'],
-        reconnectionAttempts: 5,
-        timeout: 10000
+        reconnectionAttempts: 4,
+        timeout: 3000
     });
 
     const loadingScreen = document.getElementById('loadingScreen');
     const mainContent = document.getElementById('mainContent');
+    const menuBtn = document.getElementById('menuBtn');
+    const menu = document.getElementById('menu');
+    const closeMenuBtn = document.getElementById('closeMenuBtn');
     const themeBtn = document.getElementById('themeBtn');
     const profileBtn = document.getElementById('profileBtn');
-    const backBtn = document.getElementById('backBtn');
     const messageInput = document.getElementById('messageInput');
     const sendMessageBtn = document.getElementById('sendMessageBtn');
-    const imageUpload = document.getElementById('imageUpload');
+    const fileUpload = document.getElementById('fileUpload');
     const imageUploadBtn = document.getElementById('imageUploadBtn');
     const recordVoiceBtn = document.getElementById('recordVoiceBtn');
     const chatContainer = document.getElementById('chatContainer');
     const chatTitle = document.getElementById('chatTitle');
     const chatroomList = document.getElementById('chatroomList');
-    const dmList = document.getElementById('dmList');
+    const dmListEl = document.getElementById('dmList');
     const createChatroomBtn = document.getElementById('createChatroomBtn');
-    const joinChatroomInput = document.getElementById('joinChatroomInput');
     const joinChatroomBtn = document.getElementById('joinChatroomBtn');
-
+    const submitJoinChatroom = document.getElementById('submitJoinChatroom');
+    const joinChatroomLink = document.getElementById('joinChatroomLink');
+    
     let currentChatroom = null;
-    let currentDM = null;
+    let currentDmId = null;
     let isRecording = false;
     let mediaRecorder = null;
-    let user = JSON.parse(localStorage.getItem('user')) || { username: 'Guest' + Math.floor(Math.random() * 1000), email: '', avatar: '', bio: '' };
+    let user = JSON.parse(localStorage.getItem('user')) || { username: 'Guest' + Math.random().toString(36).slice(2, 6), email: '', avatar: '', bio: '' };
+    let nicknames = JSON.parse(localStorage.getItem('nicknames')) || {};
+    let blockedUsers = JSON.parse(localStorage.getItem('blockedUsers')) || [];
 
-    // Socket.IO connection handling
+    // Socket.IO connection
     socket.on('connect', () => {
-        console.log('Socket.IO connected successfully');
+        console.log('Socket.IO connected');
         checkLoginStatus();
     });
-    socket.on('connect_error', (error) => {
-        console.error('Socket.IO connection error:', error);
-        alert('Failed to connect to server. Some features may not work.');
+    socket.on('connect_error', (e) => {
+        console.error('Socket.IO error:', e);
+        alert('Server connection failed. Try later.');
     });
-
-    // Check login status
-    function checkLoginStatus() {
-        if (user.username.startsWith('Guest')) {
-            openModal('profileModal');
-        }
-        socket.emit('userConnected', user);
-    }
 
     // Initialize
     try {
         setTimeout(() => {
             if (loadingScreen && mainContent) {
-                loadingScreen.classList.add('opacity-0', 'pointer-events-none');
+                loadingScreen.classList.add('opacity-0', 'hidden');
                 mainContent.classList.remove('opacity-0');
                 mainContent.classList.add('opacity-100');
             } else {
-                console.error('Loading screen or main content not found:', { loadingScreen, mainContent });
-                document.body.style.display = 'block';
+                console.error('Loading elements missing:', { loadingScreen, mainContent });
+                document.body.style.display = 'flex';
             }
-        }, 3000); // Increased to 3 seconds for slower networks
-    } catch (error) {
-        console.error('Initialization error:', error);
+        }, 2000);
+    } catch (e) {
+        console.error('Init error:', e);
         if (loadingScreen && mainContent) {
-            loadingScreen.style.display = 'none';
-            mainContent.style.display = 'block';
+            loadingScreen.classList.add('hidden');
+            mainContent.style.display = 'flex';
         }
     }
+
+    // Menu toggle
+    menuBtn.addEventListener('click', () => menu.classList.toggle('open'));
+    closeMenuBtn.addEventListener('click', () => menu.classList.remove('open'));
 
     // Theme toggle
     themeBtn.addEventListener('click', () => {
         document.body.classList.toggle('dark-theme');
         document.body.classList.toggle('light-theme');
-        themeBtn.textContent = document.body.classList.contains('dark-theme') ? 'Light Theme' : 'Dark Theme';
-    });
-
-    // Back to home
-    backBtn.addEventListener('click', () => {
-        window.location.href = '/pages/index.html';
+        themeBtn.textContent = document.body.classList.contains('dark-theme') ? 'Light' : 'Dark';
     });
 
     // Modal handling
     function openModal(modalId) {
-        document.getElementById(modalId).style.display = 'block';
+        document.getElementById(modalId).classList.add('display', 'flex');
+        menu.classList.remove('open');
     }
     function closeModal(modalId) {
-        document.getElementById(modalId).style.display = 'none';
+        document.getElementById(modalId).classList.remove('display', 'flex');
     }
 
     // Profile handling
@@ -295,7 +360,7 @@
         document.getElementById('profileUsername').value = user.username;
         document.getElementById('profileEmail').value = user.email;
         document.getElementById('profileBio').value = user.bio;
-        const avatarPreview = document.getElementById('avatarPreview');
+        const avatarPreview = document.getElementById('profileAvatarPreview');
         if (user.avatar) {
             avatarPreview.src = user.avatar;
             avatarPreview.classList.remove('hidden');
@@ -303,47 +368,126 @@
         openModal('profileModal');
     });
 
-    document.getElementById('avatar').addEventListener('change', (e) => {
-        const file = e.target.files[0];
+    document.getElementById('profileAvatarInput').addEventListener('change', (event) => {
+        const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = () => {
-                document.getElementById('avatarPreview').src = reader.result;
-                document.getElementById('avatarPreview').classList.remove('hidden');
+                document.getElementById('profileAvatarPreview').src = reader.result;
+                document.getElementById('profileAvatarPreview').classList.remove('hidden');
             };
             reader.readAsDataURL(file);
         }
     });
 
-    document.getElementById('profileForm').addEventListener('submit', (e) => {
-        e.preventDefault();
+    document.getElementById('profileForm').addEventListener('submit', (event) => {
+        event.preventDefault();
         user.username = document.getElementById('profileUsername').value;
         user.email = document.getElementById('profileEmail').value;
         user.bio = document.getElementById('profileBio').value;
-        user.avatar = document.getElementById('avatarPreview').src;
+        user.avatar = document.getElementById('profileAvatarPreview').src;
         localStorage.setItem('user', JSON.stringify(user));
         socket.emit('userUpdated', user);
         alert('Profile updated!');
         closeModal('profileModal');
     });
 
-    document.getElementById('logout').addEventListener('click', () => {
+    document.getElementById('logoutBtn').addEventListener('click', () => {
         localStorage.removeItem('user');
-        user = { username: 'Guest' + Math.floor(Math.random() * 1000), email: '', avatar: '', bio: '' };
+        user = { username: 'Guest' + Math.random().toString(36).slice(6), email: '', avatar: '', bio: '' };
         socket.emit('userUpdated', user);
-        alert('Logged out!');
+        alert('Logged out');
         closeModal('profileModal');
         checkLoginStatus();
     });
 
-    // Socket.IO events
-    socket.on('chatroomsUpdated', (chatrooms) => {
+    // Nickname handling
+    document.getElementById('nicknameForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const targetUsername = document.getElementById('nicknameTarget').value;
+        const nickname = document.getElementById('nickname').value.trim();
+        if (nickname) {
+            nickname[targetUsername] = nicknames;
+            localStorage.setItem('nickname', JSON.stringify(nickname));
+            alert(`Nickname set for ${targetUsername}`);
+            closeModal('setNicknameModal');
+        } else {
+            alert('Enter nickname');
+            valid nickname');
+        }
+    });
+
+    // Profile menu
+    function showProfileMenu(username, event) {
+        let profileMenu = document.createElement('div');
+        profileMenu.id = 'profileMenu';
+        profileMenu.className = 'profile-menu';
+        profileMenu.innerHTML = `
+            <div class="profile-menu-content">
+                <ul class="space-y-1 text-sm">
+                    <li class="p-2 rounded-md cursor-pointer hover:bg-gray-300" onclick="openNicknameModal('${username}')"><i class="fas fa-w mr-2"></i>Nickname</li>
+                    <li class="p-2 rounded-md cursor-pointer hover:bg-gray-300" onclick="startDM('${username}')"><i class="fas fa-message mr-2"></i>Message</li>
+                    <li class="p-2 rounded-md cursor-pointer" hover:bg-gray-300" onclick="viewProfile('${username}')"><i class="fas fa-user mr-2"></i>Profile</li>
+                    <li class="p-2 rounded-md cursor-pointer hover:bg-gray-300" onclick="blockUser('${username}')"><i class="fas fa-ban mr-2"></i>Block</li>
+                </ul>
+            </div>
+        `;
+        document.body.appendChild(profileMenu);
+        const rect = event.target.getBoundingClientRect();
+        profileMenu.style.top = `${rect.bottom + window.scrollY + 5}px`;
+        profileMenu.style.left = `${rect.left + window.scrollX}px`;
+        profileMenu.style.display = 'block';
+
+        document.addEventListener('click', function handler(e) {
+            if (!profileMenu.contains(e.target)) {
+                profileMenu.remove();
+                document.removeEventListener('click', handler);
+            }
+        }, { once: true });
+    }
+
+    function openNicknameModal(username) {
+        document.getElementById('nicknameTarget').value = username;
+        document.getElementById('nicknameInput').value = nicknames[username] || '';
+        openModal('setNicknameModal');
+    }
+
+    function viewProfile(username) {
+        const targetUser = users.find(u => u.username === username);
+        if (targetUser) {
+            document.getElementById('viewProfileAvatar').value = targetUser.avatar || 'https://via.placeholder.com/100';
+            document.getElementById('viewProfileUsername').value = targetUser.username;
+            document.getElementById('viewProfileNickname').textContent = nicknames[targetUser.username] || targetUser.username;
+            document.getElementById('viewProfileBio').value = targetUser.bio || 'No bio';
+            openModal('viewProfileModal');
+            }
+        }
+    }
+
+    function blockUser(username) {
+        if (confirm(`Block ${username}? You won't see their messages.`)) {
+            blockedUsers.push(username);
+            localStorage.setItem('blockedUsers', JSON.stringify(blockedUsers));
+            alert(`${username} blocked`);
+            if (currentDmId === username) {
+                currentDmId = null;
+                chatContainer.innerHTML = '';
+                chatTitle.textContent = 'Select a Chatroom or DM';
+            }
+        }
+    }
+
+    // Chatroom and DM handling
+    socket.on('chatrooms', (chatrooms) => {
         chatroomList.innerHTML = '';
         chatrooms.forEach(({ id, name }) => {
             const li = document.createElement('li');
-            li.className = 'p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
+            li.className = 'p-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 text-sm';
             li.textContent = name;
-            li.onclick = () => switchChatroom(id, name);
+            li.onclick = () => {
+                switchChatroom(id);
+                menu.classList.remove('open');
+            });
             chatroomList.appendChild(li);
         });
     });
@@ -353,69 +497,84 @@
         users.forEach(u => {
             if (u.username !== user.username) {
                 const li = document.createElement('li');
-                li.className = 'p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
-                li.textContent = u.username;
-                li.onclick = () => startDM(u.username);
+                li.className = 'p-2 p bg-gray-200 rounded-md cursor-pointer hover:bg-gray-300 flex items-center text-sm gap-2';
+                li.innerHTML = `
+                    <img src="${u.avatar || 'https://via.placeholder.com/24'}" alt="Avatar" class="w-6 h-6 rounded-full">
+                    <span class="user-select" data-username="${u.username}">${nicknames[u.username] || u.username}</span>
+                `;
+                li.querySelector('.user-select').onclick .addEventListener('click', (e) => showProfileMenu(u.username, e));
+                li.onclick = () => {
+                    startDM(u.username);
+                    menu.classList.remove('open');
+                };
                 dmList.appendChild(li);
-            }
+            });
         });
     });
 
     socket.on('message', (message) => {
-        if ((currentChatroom && message.chatroomId === currentChatroom) || 
-            (currentDM && message.dmId === [user.username, currentDM].sort().join('_'))) {
-            displayMessage(message);
+        if (blockedUsers.includes(message.sender)) return;
+        if ((currentChatroom && message.chatroomId === currentChatroom) ||
+            (currentDmId && message.id === [user.username, currentDmId].sort().join(':'))) {
+            displayMessage(message));
         }
     });
 
     // Create chatroom
-    createChatroomBtn.addEventListener('click', () => openModal('createChatroomModal'));
-    document.getElementById('createChatroomForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('chatroomName').value.trim();
+    createChatroomBtn.addEventListener('click', () => openModal('createChatModal'));
+    document.getElementById('createChatForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const name = document.getElementById('chatRoomName').value.trim();
         if (name) {
             socket.emit('createChatroom', { name });
-            closeModal('createChatroomModal');
+            closeModal('createChatModal');
         }
     });
 
     socket.on('chatroomCreated', ({ id, name }) => {
         const link = `${window.location.origin}/pages/chatroom.html?chatroom=${id}`;
-        alert(`Chatroom created! Share this link: ${link}`);
-        switchChatroom(id, name);
+        alert(`Chatroom created! Share: ${link}`);
+        switchChatroom(id));
     });
 
     // Join chatroom
-    joinChatroomBtn.addEventListener('click', () => {
-        const link = joinChatroomInput.value.trim();
-        const match = link.match(/chatroom=([^&]+)/);
+    joinChatroomBtn.addEventListener('click', () => openModal('joinChatroomModal'));
+
+    submitJoinChatroom.addEventListener('click', () => {
+        const link = document.getElementById('joinChatroomLink').value.trim();
+        const match = link.match(/chatroom=/([^=&]+)/);
         if (match) {
             socket.emit('joinChatroom', match[1]);
+            closeModal('joinChatroomModal');
         } else {
             alert('Invalid chatroom link');
         }
     });
 
     socket.on('joinChatroom', ({ id, name }) => {
-        switchChatroom(id, name);
+        switchChatroom(id));
     });
 
     // Switch chatroom
-    function switchChatroom(id, name) {
+    function switchChatroom(id) {
         currentChatroom = id;
-        currentDM = null;
-        chatTitle.textContent = name;
-        chatContainer.innerHTML = '';
-        socket.emit('getMessages', { chatroomId: id });
+        currentDmId = null;
+        chatTitle.textContent = chatrooms.find(c => c.id === id)?.name || 'Chatroom';
+        chatContainer.innerHTML = '';;
+        socket.emit('chatroomId', { chatroomId: id });
     }
 
     // Start DM
     function startDM(username) {
-        currentDM = username;
+        if (blockedUsers.includes(username)) {
+            alert('You blocked this user');
+            return;
+        }
+        currentDmId = username;
         currentChatroom = null;
-        chatTitle.textContent = `DM with ${username}`;
+        chatTitle.textContent = `DM: ${nicknames[username] || username}`;
         chatContainer.innerHTML = '';
-        const dmId = [user.username, username].sort().join('_');
+        const dmId = [user.username, username].sort().join(':');
         socket.emit('getMessages', { dmId });
     }
 
@@ -427,7 +586,10 @@
 
     function sendMessage() {
         const content = messageInput.value.trim();
-        if (!content || (!currentChatroom && !currentDM)) return;
+        if (!content || (!currentChatroom && !currentDmId)) {
+            alert('Select a chatroom or DM!');
+            return;
+        }
         const message = {
             sender: user.username,
             content,
@@ -435,126 +597,139 @@
             avatar: user.avatar || '',
             timestamp: Date.now(),
             chatroomId: currentChatroom,
-            dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
+            dmId: currentDmId ? [user.username, currentDmId].sort().join(':') : null
         };
         socket.emit('sendMessage', message);
         messageInput.value = '';
     }
 
     // Image upload
-    imageUploadBtn.addEventListener('click', () => imageUpload.click());
-    imageUpload.addEventListener('change', (e) => {
+    imageUploadBtn.addEventListener('click', () => fileUpload.click());
+    fileUpload.addEventListener('change', (e) => {
         const file = e.target.files[0];
-        if (!file || (!currentChatroom && !currentDM)) return;
+        if (!file || (!currentChatroom && !currentDmId)) {
+            alert('Select a chatroom or DM!');
+            return;
+        }
         const formData = new FormData();
         formData.append('file', file);
         formData.append('chatroomId', currentChatroom || '');
-        formData.append('dmId', currentDM ? [user.username, currentDM].sort().join('_') : '');
+        formData.append('dmId', currentDmId ? [user.username, currentDmId].sort().join(':') : '');
         formData.append('sender', user.username);
         formData.append('avatar', user.avatar || '');
         fetch('/upload', {
             method: 'POST',
             body: formData
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.url) {
-                socket.emit('sendMessage', {
-                    sender: user.username,
-                    content: data.url,
-                    type: 'image',
-                    avatar: user.avatar || '',
-                    timestamp: Date.now(),
-                    chatroomId: currentChatroom,
-                    dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
-                });
-            }
-        })
-        .catch(err => {
-            console.error('Image Upload Error:', err);
-            alert('Failed to upload image');
-        });
-        imageUpload.value = '';
+            .then(res => res.json())
+            .then(data => {
+                if (data.url) {
+                    socket.emit('sendMessage', {
+                        sender: user.username,
+                        content: data.url,
+                        type: 'image',
+                        avatar: user.avatar,
+                        timestamp: Date.now(),
+                        chatroomId: currentChatroom,
+                        dmId: currentDmId ? [user.username, currentDmId].sort().join(':') : null
+                    });
+                }
+            })
+            .catch(err => {
+                console.error('Upload error:', err);
+                alert('Image upload failed');
+            });
+        fileUpload.value = '';
     });
 
     // Voice recording
     recordVoiceBtn.addEventListener('click', async () => {
-        if (!currentChatroom && !currentDM) return;
+        if (!currentChatroom && !currentDmId) {
+            alert('Select a chatroom or DM!');
+            return;
+        }
         if (!isRecording) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
-                const chunks = [];
+                let chunks = [];
                 mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
                 mediaRecorder.onstop = () => {
                     const blob = new Blob(chunks, { type: 'audio/webm' });
                     const formData = new FormData();
                     formData.append('file', blob, `${Date.now()}.webm`);
                     formData.append('chatroomId', currentChatroom || '');
-                    formData.append('dmId', currentDM ? [user.username, currentDM].sort().join('_') : '');
+                    formData.append('dmId', currentDmId ? [user.username, currentDmId].sort().join(':') : '');
                     formData.append('sender', user.username);
                     formData.append('avatar', user.avatar || '');
                     fetch('/upload', {
                         method: 'POST',
                         body: formData
                     })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.url) {
-                            socket.emit('sendMessage', {
-                                sender: user.username,
-                                content: data.url,
-                                type: 'voice',
-                                avatar: user.avatar || '',
-                                timestamp: Date.now(),
-                                chatroomId: currentChatroom,
-                                dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
-                            });
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Voice Upload Error:', err);
-                        alert('Failed to upload voice note');
-                    });
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.url) {
+                                socket.emit('sendMessage', {
+                                    sender: user.username,
+                                    content: data.url,
+                                    type: 'voice',
+                                    avatar: user.avatar,
+                                    timestamp: Date.now(),
+                                    chatroomId: currentChatroom,
+                                    dmId: currentDmId ? [user.username, currentDmId].sort().join(':') : null
+                                });
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Voice upload error:', err);
+                            alert('Voice note upload failed');
+                        });
+                    chunks = [];
                 };
                 mediaRecorder.start();
-                recordVoiceBtn.textContent = 'Stop Recording';
-                recordVoiceBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
-                recordVoiceBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                recordVoiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                recordVoiceBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                recordVoiceBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
                 isRecording = true;
-            } catch (error) {
-                console.error('Recording Error:', error);
-                alert('Failed to access microphone');
+            } catch (err) {
+                console.error('Recording error:', err);
+                alert('Microphone access failed');
             }
         } else {
             mediaRecorder.stop();
-            recordVoiceBtn.textContent = 'Record';
-            recordVoiceBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
-            recordVoiceBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+            recordVoiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            recordVoiceBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+            recordVoiceBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
             isRecording = false;
         }
     });
 
     // Display message
     function displayMessage(message) {
+        if (blockedUsers.includes(message.sender)) return;
         const isSent = message.sender === user.username;
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${isSent ? 'sent' : 'received'}`;
         let content = '';
         if (message.type === 'text') {
-            content = `<p>${message.content}</p>`;
+            content = `<p class="text-sm">${message.content}</p>`;
         } else if (message.type === 'image') {
-            content = `<img src="${message.content}" alt="Image">`;
+            content = `<img src="${message.content}" alt="Image" class="max-w-full rounded-lg">`;
         } else if (message.type === 'voice') {
-            content = `<audio controls><source src="${message.content}" type="audio/webm"></audio>`;
+            content = `<audio controls class="w-full"><source src="${message.content}" type="audio/webm"></audio>`;
         }
+        const displayName = nicknames[message.sender] || message.sender;
         messageDiv.innerHTML = `
             <div class="flex items-center gap-2">
-                <img src="${message.avatar || 'https://via.placeholder.com/40'}" alt="Avatar" class="w-8 h-8 rounded-full">
-                <p class="text-sm font-bold">${message.sender}</p>
+                <img src="${message.avatar || 'https://via.placeholder.com/32'}" alt="Avatar" class="w-8 h-8 rounded-full user-select" data-username="${message.sender}">
+                <p class="text-xs font-semibold user-select" data-username="${message.sender}">${displayName}</p>
             </div>
             ${content}
-            <p class="text-xs text-gray-400">${new Date(message.timestamp).toLocaleTimeString()}</p>`;
+            <p class="text-xs text-gray-400">${new Date(message.timestamp).toLocaleTimeString()}</p>
+        `;
+        messageDiv.querySelectorAll('.user-select').forEach(el => {
+            el.addEventListener('click', (e) => showProfileMenu(message.sender, e));
+        });
         chatContainer.appendChild(messageDiv);
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
@@ -568,8 +743,16 @@
     const urlParams = new URLSearchParams(window.location.search);
     const chatroomId = urlParams.get('chatroom');
     if (chatroomId) {
-        console.log('Joining chatroom from URL:', chatroomId);
+        console.log('Joining chatroom:', chatroomId);
         socket.emit('joinChatroom', chatroomId);
+    }
+
+    // Check login status
+    function checkLoginStatus() {
+        if (user.username.startsWith('Guest')) {
+            openModal('profileModal');
+        }
+        socket.emit('userConnected', user);
     }
 </script>
 </body>
