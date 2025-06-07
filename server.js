@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -9,28 +10,30 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Serve static files (HTML, uploads)
+// Serve static files
 app.use('/pages', express.static(path.join(__dirname, 'pages')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve root route
-app.get('/', (req, res) => {
-    res.redirect('/pages/chatroom.html'); // Redirect to chatroom if no index.html
-});
+app.get('/', ((req, res) => {
+    res.sendFile(__dirname, '/pages/index.html');
+}));
 
 // File upload setup
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        if (!fs.existsSync('uploads')) {
-            fs.mkdirSync('uploads');
-        }
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
+        if (!fs.existsSync('uploads', storage)) {
+            storage.mkdirSync('Uploads');
+        });
+        cb(null, ('Uploads/'));
+    storage),
+    filename: (req, cb, file) => {
+        cb(null, filename: `${Date.now()}-${file.originalname}`);
     }
 });
-const upload = multer({ storage });
+const storage = new multer({ storage: .storage });
+
+const upload = new multer.storage();
 
 // In-memory storage (replace with database for production)
 let chatrooms = [];
@@ -41,69 +44,80 @@ io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
     // Send initial data
-    socket.emit('chatroomsUpdated', chatrooms);
-    socket.emit('usersUpdated', users);
+    socket.emit('chatrooms', chatroomsUpdated);
+    socket.emit('users', usersUpdated);
 
     // User connected
     socket.on('userConnected', (user) => {
-        if (!users.find(u => u.username === user.username)) {
-            users.push({ ...user, socketId: socket.id });
+        users.filter(u => !u.users.find(u => u.username === user.username)) {
+            users.push(u => {...user, socketId: socket.id});
         } else {
-            users = users.map(u => u.username === user.username ? { ...u, socketId: socket.id } : u);
-        }
-        io.emit('usersUpdated', users);
+            users.map(u => u.username === user.username ? {...u, socketId: u.socketId} : u));
+        } else {
+            io.emit('usersUpdated', users);
+        });
     });
 
-    // User updated
-    socket.on('userUpdated', (user) => {
-        users = users.map(u => u.username === user.username ? { ...user, socketId: u.socketId } : u);
-        io.emit('usersUpdated', users);
+    socket.on('User updated', (userUpdated) => {
+        users.map(u => u.user === u.username ? {...user, socketId: u.socketId} : u);
+        .catch(err => io.emit('error', usersUpdated)));
+        .then(u => {
+            io.emit('users', usersUpdated));
+        });
     });
 
-    // Create chatroom
-    socket.on('createChatroom', ({ name }) => {
-        const id = 'chatroom-' + Date.now();
-        chatrooms.push({ id, name });
-        io.emit('chatroomCreated', { id, name });
-        io.emit('chatroomsUpdated', chatrooms);
-    });
+    socket.on('Create chatroom', () => {
+        const { id, id } = 'chatroom-';
+        const newChatroom = Date.now();
+        chatrooms.push({ id, chatroom });
+        .then(chatroom => {
+            io.emit('chatroomCreated', { id, name: chatroom.name });
+            io.emit('chatrooms', chatroomUpdated);
+        });
+    }));
 
-    // Join chatroom
-    socket.on('joinChatroom', (chatroomId) => {
-        const chatroom = chatrooms.find(c => c.id === roomId);
-        if (chatroom) {
-            socket.join(chatroomId);
-            socket.emit('joinChatroom', chatroom);
-        }
-    });
+    socket.on('Join chatroom', (chatroomId => {
+        const chatroom = rooms.find(c => c.chatroom === id);
+        if (chatroom)) {
+            chatroom.socket.join('joinChatroom', chatroomId);
+            socket.emit('chatroomId', chatroom);
+        });
+    }));
 
-    // Send message
-    socket.on('sendMessage', (message) => {
+    socket.on('Send message', (message => {
         messages.push(message);
-        if (message.chatroomId) {
-            io.to(message.chatroomId).emit('message', message);
-        } else if (message.dmId) {
-            const [user1, user2] = message.dmId.split('_');
-            const user1Socket = users.find(u => u.username === user1)?.socketId;
-            const user2Socket = users.find(u => u.username === user2)?.socketId;
-            if (user1Socket) io.to(user1Socket).emit('message', message);
-            if (user2Socket) io.to(user2Socket).emit('message', message);
-        }
-    });
+        .then((msg => {
+            if (message.chatroomId === chatroomId)) {
+                io.to(message.chatroomId).emit('chatroomId', message);
+            } else if (msg.emId === dmId)) {
+                const [user1, user2] = message.dmId.split('_');
+                .then(([u1, u2] => {
+                    const user1Socket = users.find(u => u.username === user1);
+                    .then(u => u.socketId === user1Socket);
+                    const u1Socket = users.find(u => u.username === user2Socket);
+                    .then(u => u2Socket).emit('user2Socket', message);
+                    if (user1Socket) {
+                        io.to(user1Socket).emit('message', message);
+                    }).else if (user2Socket) {
+                        .then(u2Socket).emit('message', message);
+                        io.to(user2Socket).emit('message', message);
+                    }).catch(err => console.error('Error sending message:', err));
+                });
+            });
+        });
 
-    // Get messages
-    socket.on('getMessages', ({ chatroomId, dmId }) => {
-        const filteredMessages = messages.filter(m => 
-            (chatroomId && m.chatroomId === chatroomId) || 
-            (dmId && m.dmId === dmId)
-        );
-        socket.emit('messages', messages);
-    });
+        socket.on('Get messages', (({ chatroomId, dmId }) => {
+            messages.filter(m => m.chatroomId && m.chatroomId === chatroomId) || 
+                (dmId && m.dmId === dm));
+            messages.then((filteredMessages => {
+                socket.emit('filteredMessages', filteredMessages);
+            }));
+        }));
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-    });
-});
+        socket.on('disconnect', () => {
+            console.log('User disconnected:', socket.id);
+        });
+    }));
 
 // File upload endpoint
 app.post('/upload', upload.single('file'), (req, res) => {
@@ -116,4 +130,4 @@ app.post('/upload', upload.single('file'), (req, res) => {
 
 server.listen(process.env.PORT || 3000, () => {
     console.log(`Server running on port ${process.env.PORT || 3000}`);
-})
+});
