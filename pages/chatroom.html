@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatroom - Stream Me ID</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap">
+    <style>
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            transition: background 0.3s;
+        }
+        .dark-theme {
+            background: linear-gradient(to bottom right, #000000, #1a202c, #2b6cb0);
+            color: white;
+        }
+        .light-theme {
+            background: linear-gradient(to bottom right, #e0f7fa, #e6e6fa, #b3e5fc);
+            color: black;
+        }
+        .glitch {
+            position: relative;
+            font-size: 4rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: white;
+            text-shadow: 0 0 5px #fff, 0 0 10px #00ffff, 0 0 15px #00ffff, 0 0 20px #00ffff;
+            animation: glitchText 2s infinite;
+        }
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            color: #ff00ff;
+            animation: glitchEffect 2s infinite;
+        }
+        .glitch::before { z-index: -1; left: -2px; top: -2px; }
+        .glitch::after { z-index: -2; left: 2px; top: 2px; }
+        @keyframes glitchText {
+            0%, 100% { transform: none; }
+            20% { transform: skew(5deg, 5deg); }
+            40% { transform: skew(-5deg, -5deg); }
+            60% { transform: skew(5deg, -5deg); }
+            80% { transform: skew(-5deg, 5deg); }
+        }
+        @keyframes glitchEffect {
+            0% { clip-path: inset(0% 0% 10% 0%); }
+            20% { clip-path: inset(10% 0% 0% 0%); }
+            40% { clip-path: inset(0% 10% 10% 0%); }
+            60% { clip-path: inset(10% 0% 10% 10%); }
+            80% { clip-path: inset(0% 0% 10% 10%); }
+            100% { clip-path: inset(10% 10% 0% 0%); }
+        }
+        .logo-animation {
+            width: 100px;
+            height: 100px;
+            animation: spinLogo 1.5s infinite linear;
+        }
+        @keyframes spinLogo {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .background-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 500px;
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: #1a202c;
+            margin: 5% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        .chat-message {
+            max-width: 70%;
+            margin: 8px;
+            padding: 10px;
+            border-radius: 8px;
+            word-wrap: break-word;
+        }
+        .chat-message img, .chat-message audio {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        .chat-message.sent {
+            background: #00bcd4;
+            margin-left: auto;
+            color: black;
+        }
+        .chat-message.received {
+            background: #4a5568;
+            margin-right: auto;
+            color: white;
+        }
+        .chat-container {
+            height: 70vh;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="min-h-screen dark-theme relative">
+    <img src="https://files.catbox.moe/d15q3r.png" alt="Stream Me ID Logo" class="background-logo">
+    <div class="fixed top-0 left-0 w-full h-full bg-black flex flex-col justify-center items-center transition-opacity duration-500" id="loadingScreen">
+        <img src="https://files.catbox.moe/d15q3r.png" alt="Stream Me ID Logo" class="logo-animation">
+        <h1 class="glitch text-center mt-4" data-text="STREAM ME ID">STREAM ME ID</h1>
+        <div class="w-12 h-12 border-4 border-gray-800 border-t-cyan-400 rounded-full animate-spin mt-4"></div>
+    </div>
+    <div class="opacity-0 transition-opacity duration-500" id="mainContent">
+        <header class="bg-black bg-opacity-80 border-b border-gray-700 sticky top-0 z-50">
+            <div class="max-w-screen-xl mx-auto flex items-center justify-between p-4">
+                <div class="text-2xl font-extrabold bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text">
+                    🎵 STREAM ME ID
+                </div>
+                <div class="flex gap-2 items-center">
+                    <button id="themeBtn" class="px-4 py-2 bg-gray-700 text-white font-bold rounded-full hover:bg-gray-600">Light Theme</button>
+                    <button id="profileBtn" class="px-4 py-2 bg-purple-500 text-black font-bold rounded-full hover:bg-purple-600">Profile</button>
+                    <button id="backBtn" class="px-4 py-2 bg-blue-500 text-black font-bold rounded-full hover:bg-blue-600">Back to Home</button>
+                </div>
+            </div>
+        </header>
+        <main class="max-w-screen-xl mx-auto p-4">
+            <div class="flex flex-col md:flex-row gap-4">
+                <!-- Chatroom List -->
+                <div class="w-full md:w-1/4 bg-gray-800 rounded-lg p-4">
+                    <h2 class="text-xl font-bold text-cyan-400 mb-4">Chatrooms</h2>
+                    <button id="createChatroomBtn" class="w-full p-2 mb-4 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Create Chatroom</button>
+                    <input type="text" id="joinChatroomInput" placeholder="Enter chatroom link..." class="w-full p-2 mb-4 bg-gray-900 text-white rounded-lg border border-gray-700 focus:outline-none">
+                    <button id="joinChatroomBtn" class="w-full p-2 mb-4 bg-blue-500 text-black font-bold rounded-lg hover:bg-blue-600">Join Chatroom</button>
+                    <ul id="chatroomList" class="space-y-2"></ul>
+                    <h2 class="text-xl font-bold text-cyan-400 mt-6 mb-4">DMs</h2>
+                    <ul id="dmList" class="space-y-2"></ul>
+                </div>
+                <!-- Chat Area -->
+                <div class="w-full md:w-3/4 bg-gray-800 rounded-lg p-4 flex flex-col">
+                    <h2 class="text-xl font-bold text-cyan-400 mb-4" id="chatTitle">Select a Chatroom or DM</h2>
+                    <div id="chatContainer" class="chat-container flex-1 p-4 bg-gray-900 rounded-lg overflow-y-auto"></div>
+                    <div class="mt-4 flex gap-2">
+                        <input type="text" id="messageInput" placeholder="Type a message..." class="flex-1 p-2 bg-gray-900 text-white rounded-lg border border-gray-700 focus:outline-none">
+                        <button id="sendMessageBtn" class="px-4 py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-cyan-500">Send</button>
+                        <input type="file" id="imageUpload" accept="image/*" class="hidden">
+                        <button id="imageUploadBtn" class="px-4 py-2 bg-purple-500 text-black font-bold rounded-lg hover:bg-purple-600">Image</button>
+                        <button id="recordVoiceBtn" class="px-4 py-2 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600">Record</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <!-- Profile Modal -->
+        <div id="profileModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Profile</h2>
+                <form id="profileForm">
+                    <div class="flex justify-center mb-4">
+                        <img src="" id="avatarPreview" class="w-24 h-24 rounded-full object-cover hidden">
+                    </div>
+                    <input type="file" id="avatar" accept="image/*" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg">
+                    <input type="text" id="profileUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <input type="email" id="profileEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <textarea id="profileBio" placeholder="Bio" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400"></textarea>
+                    <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Save</button>
+                </form>
+                <button id="logout" class="w-full p-3 mt-4 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600">Logout</button>
+                <button class="w-full p-3 mt-4 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600" onclick="closeModal('profileModal')">Close</button>
+            </div>
+        </div>
+        <!-- Create Chatroom Modal -->
+        <div id="createChatroomModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Create Chatroom</h2>
+                <form id="createChatroomForm">
+                    <input type="text" id="chatroomName" placeholder="Chatroom Name" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Create</button>
+                </form>
+                <button class="w-full p-3 mt-4 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600" onclick="closeModal('createChatroomModal')">Close</button>
+            </div>
+        </div>
+    </div>
+<script>
+    const socket = io('http://localhost:3000'); // Replace with your server URL
+    const loadingScreen = document.getElementById('loadingScreen');
+    const mainContent = document.getElementById('mainContent');
+    const themeBtn = document.getElementById('themeBtn');
+    const profileBtn = document.getElementById('profileBtn');
+    const backBtn = document.getElementById('backBtn');
+    const messageInput = document.getElementById('messageInput');
+    const sendMessageBtn = document.getElementById('sendMessageBtn');
+    const imageUpload = document.getElementById('imageUpload');
+    const imageUploadBtn = document.getElementById('imageUploadBtn');
+    const recordVoiceBtn = document.getElementById('recordVoiceBtn');
+    const chatContainer = document.getElementById('chatContainer');
+    const chatTitle = document.getElementById('chatTitle');
+    const chatroomList = document.getElementById('chatroomList');
+    const dmList = document.getElementById('dmList');
+    const createChatroomBtn = document.getElementById('createChatroomBtn');
+    const joinChatroomInput = document.getElementById('joinChatroomInput');
+    const joinChatroomBtn = document.getElementById('joinChatroomBtn');
+
+    let currentChatroom = null;
+    let currentDM = null;
+    let isRecording = false;
+    let mediaRecorder = null;
+    let user = JSON.parse(localStorage.getItem('user')) || { username: 'Guest' + Math.floor(Math.random() * 1000), email: '', avatar: '' };
+
+    // Check login status
+    function checkLoginStatus() {
+        if (user.username.startsWith('Guest')) {
+            openModal('profileModal'); // Prompt for profile setup
+        }
+        socket.emit('userConnected', user);
+    }
+
+    // Initialize
+    checkLoginStatus();
+    setTimeout(() => {
+        loadingScreen.classList.add('opacity-0', 'pointer-events-none');
+        mainContent.classList.remove('opacity-0');
+        mainContent.classList.add('opacity-100');
+    }, 2000);
+
+    // Theme toggle
+    themeBtn.addEventListener('click', () => {
+        document.body.classList.toggle('dark-theme');
+        document.body.classList.toggle('light-theme');
+        themeBtn.textContent = document.body.classList.contains('dark-theme') ? 'Light Theme' : 'Dark Theme';
+    });
+
+    // Back to home
+    backBtn.addEventListener('click', () => {
+        window.location.href = '../index.html';
+    });
+
+    // Modal handling
+    function openModal(modalId) {
+        document.getElementById(modalId).style.display = 'block';
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    // Profile handling
+    profileBtn.addEventListener('click', () => {
+        document.getElementById('profileUsername').value = user.username;
+        document.getElementById('profileEmail').value = user.email;
+        document.getElementById('profileBio').value = user.bio || '';
+        const avatarPreview = document.getElementById('avatarPreview');
+        if (user.avatar) {
+            avatarPreview.src = user.avatar;
+            avatarPreview.classList.remove('hidden');
+        }
+        openModal('profileModal');
+    });
+
+    document.getElementById('avatar').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById('avatarPreview').src = reader.result;
+                document.getElementById('avatarPreview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    document.getElementById('profileForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        user.username = document.getElementById('profileUsername').value;
+        user.email = document.getElementById('profileEmail').value;
+        user.bio = document.getElementById('profileBio').value;
+        user.avatar = document.getElementById('avatarPreview').src;
+        localStorage.setItem('user', JSON.stringify(user));
+        socket.emit('userUpdated', user);
+        alert('Profile updated!');
+        closeModal('profileModal');
+    });
+
+    document.getElementById('logout').addEventListener('click', () => {
+        localStorage.removeItem('user');
+        user = { username: 'Guest' + Math.floor(Math.random() * 1000), email: '', avatar: '' };
+        socket.emit('userUpdated', user);
+        alert('Logged out!');
+        closeModal('profileModal');
+        checkLoginStatus();
+    });
+
+    // Socket.IO events
+    socket.on('chatroomsUpdated', (chatrooms) => {
+        chatroomList.innerHTML = '';
+        chatrooms.forEach(({ id, name }) => {
+            const li = document.createElement('li');
+            li.className = 'p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
+            li.textContent = name;
+            li.onclick = () => switchChatroom(id, name);
+            chatroomList.appendChild(li);
+        });
+    });
+
+    socket.on('usersUpdated', (users) => {
+        dmList.innerHTML = '';
+        users.forEach(u => {
+            if (u.username !== user.username) {
+                const li = document.createElement('li');
+                li.className = 'p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
+                li.textContent = u.username;
+                li.onclick = () => startDM(u.username);
+                dmList.appendChild(li);
+            }
+        });
+    });
+
+    socket.on('message', (message) => {
+        if ((currentChatroom && message.chatroomId === currentChatroom) || 
+            (currentDM && message.dmId === [user.username, currentDM].sort().join('_'))) {
+            displayMessage(message);
+        }
+    });
+
+    // Create chatroom
+    createChatroomBtn.addEventListener('click', () => openModal('createChatroomModal'));
+    document.getElementById('createChatroomForm')).addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('chatroomName').value.trim();
+        if (chatroom) {
+            socket.emit('createChatroom', { name });
+            closeModal('createChatroomModal');
+        }
+    });
+
+    socket.on('chatroomCreated', ({ id, name }) => {
+        const link = `${window.location.origin}${window.location.pathname}?chatroom=${id}`;
+        alert('Chatroom created! Share this link: ${link}');
+        switchChatroom(id, name);
+    });
+
+    socket.on('joinChatroom', ({ id, name }) => {
+        switchChatroom(id, name);
+    });
+
+    // Switch to chatroom
+    function switchChatroom(id, name) {
+        currentChatroom = id;
+        currentDM = null;
+        chatTitle.textContent = name;
+        chatContainer.innerHTML = '';
+        socket.emit('getMessages', { chatroomId: id });
+    }
+
+    // Start DM
+    function startDM(username) {
+        currentDM = username;
+        currentChatroom = null;
+        chatTitle.textContent = `DM with ${username}`;
+        chatContainer.innerHTML = '';
+        const dmId = [user.username, username].sort().join('_');
+        socket.emit('getMessages', { dmId });
+    }
+
+    // Send message
+    sendMessageBtn.addEventListener('click', () => sendMessage());
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    ));
+
+    function sendMessage() {
+        const content = messageInput.value.trim();
+        if (!content || (!currentChatroom && !currentDM)) return;
+        const message = {
+            sender: user.username,
+            content,
+            type: 'text',
+            avatar: user.avatar || '',
+            timestamp: Date.now(),
+            chatroomId: currentChatroom,
+            dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
+        };
+        socket.emit('sendMessage', message);
+        messageInput.value = '';
+    }
+
+    // Image upload
+    imageUploadBtn.addEventListener('click', () => imageUpload.click());
+    imageUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file || (!currentChatroom && !currentDMId)) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('chatroomId', currentChatroom || '');
+        formData.append('dmId', currentDM ? [user.username, currentDM].sort().join('_') : '');
+        formData.append('sender', user.username);
+        formData.append('avatar', user.avatar || '');
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.url) {
+                    socket.emit('sendMessage', {
+                        sender: user.username,
+                        content: data.url,
+                        type: 'image',
+                        avatar: user.avatar || '',
+                        timestamp: Date.now(),
+                        chatroomId: currentChatroom,
+                        dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
+                    });
+                }
+            })
+            .catch(err => {
+                console.error('Image Upload Error:', err);
+                alert('Failed to upload image');
+            });
+        imageUpload.value = '';
+    });
+
+    // Voice recording
+    recordVoiceBtn.addEventListener('click', async () => {
+        try {
+        if (!currentChatroom && !currentDM) return;
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('file', blob, `${Date.now()}.webm`);
+                    formData.append('chatroomId', currentChatroom || '');
+                    formData.append('dmId', currentDM ? [user.username, currentDM]?.sort().join('_') : '');
+                    formData.append('sender', user.username);
+                    formData.append('avatar', user.avatar || '');
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData,
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.url) {
+                                socket.emit('sendMessage', {
+                                    sender: user.username,
+                                    content: data.url,
+                                    type: 'voice',
+                                    avatar: user.avatar || '',
+                                    timestamp: Date.now(),
+                                    chatroomId: currentChatroom,
+                                    dmId: currentDM ? [user.username, currentDM].sort().join('_') : null,
+                                });
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Voice Upload Error:', err);
+                            alert('Failed to upload voice note');
+                        });
+                    };
+                    mediaRecorder.start();
+                recordVoiceBtn.textContent = 'Stop Recording';
+                recordVoiceBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                recordVoiceBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                isRecording = true;
+            } catch (error) {
+                console.error('Recording Error:', error);
+                alert('Failed to access microphone');
+            }
+        } else {
+            mediaRecorder.stop();
+            recordVoiceBtn.textContent = 'Record';
+            recordVoiceBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+            recordVoiceBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+            isRecording = false;
+        }
+    });
+
+    // Display message
+    function displayMessage(message) {
+        const isSent = message.sender === user.username;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${isSent ? 'sent' : 'received'}`;
+        let content = '';
+        if (message.type === 'text') {
+            content = `<p>${message.content}</p>`;
+        } else if (message.type === 'image') {
+            content = `<img src="${message.content}" alt="Uploaded Image">`;
+        } else if (message.type === 'voice') {
+            content = `<audio controls><source src="${message.content}" type="audio/webm"></audio>`;
+        }
+        messageDiv.innerHTML = `
+            <div class="flex items-center gap-2">
+                <img src="${message.avatar || 'https://via.placeholder.com/40'}" alt="Avatar" class="w-8 h-8 rounded-full">
+                <p class="text-sm font-bold">${message.sender}</p>
+            </div>
+            ${content}
+            <p class="text-xs text-gray-400">${new Date(message.timestamp).toLocaleTimeString()}</p>`;
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    socket.on('messages', (messages) => {
+        chatContainer.innerHTML = '';
+        messages.forEach(displayMessage);
+    });
+
+    // Join chatroom via URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const chatroomId = urlParams.get('chatroom');
+    if (chatroomId) {
+        socket.emit('joinChatroom', chatroomId);
+    }
+</script>
+</body>
+</html
