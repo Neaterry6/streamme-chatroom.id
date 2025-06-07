@@ -201,7 +201,13 @@
         </div>
     </div>
 <script>
-    const socket = io(); // Auto-connects to host
+    // Replace with your Vercel URL after deployment
+    const socket = io('https://your-project-name.vercel.app', {
+        transports: ['websocket'],
+        reconnectionAttempts: 5,
+        timeout: 10000
+    });
+
     const loadingScreen = document.getElementById('loadingScreen');
     const mainContent = document.getElementById('mainContent');
     const themeBtn = document.getElementById('themeBtn');
@@ -226,6 +232,16 @@
     let mediaRecorder = null;
     let user = JSON.parse(localStorage.getItem('user')) || { username: 'Guest' + Math.floor(Math.random() * 1000), email: '', avatar: '', bio: '' };
 
+    // Socket.IO connection handling
+    socket.on('connect', () => {
+        console.log('Socket.IO connected successfully');
+        checkLoginStatus();
+    });
+    socket.on('connect_error', (error) => {
+        console.error('Socket.IO connection error:', error);
+        alert('Failed to connect to server. Some features may not work.');
+    });
+
     // Check login status
     function checkLoginStatus() {
         if (user.username.startsWith('Guest')) {
@@ -235,12 +251,24 @@
     }
 
     // Initialize
-    checkLoginStatus();
-    setTimeout(() => {
-        loadingScreen.classList.add('opacity-0', 'pointer-events-none');
-        mainContent.classList.remove('opacity-0');
-        mainContent.classList.add('opacity-100');
-    }, 2000);
+    try {
+        setTimeout(() => {
+            if (loadingScreen && mainContent) {
+                loadingScreen.classList.add('opacity-0', 'pointer-events-none');
+                mainContent.classList.remove('opacity-0');
+                mainContent.classList.add('opacity-100');
+            } else {
+                console.error('Loading screen or main content not found:', { loadingScreen, mainContent });
+                document.body.style.display = 'block';
+            }
+        }, 3000); // Increased to 3 seconds for slower networks
+    } catch (error) {
+        console.error('Initialization error:', error);
+        if (loadingScreen && mainContent) {
+            loadingScreen.style.display = 'none';
+            mainContent.style.display = 'block';
+        }
+    }
 
     // Theme toggle
     themeBtn.addEventListener('click', () => {
@@ -323,265 +351,226 @@
     socket.on('usersUpdated', (users) => {
         dmList.innerHTML = '';
         users.forEach(u => {
-            if (u.username !== user.username)) {
+            if (u.username !== user.username) {
                 const li = document.createElement('li');
-                li.appendChild(u);
-                li.className = 'li p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
+                li.className = 'p-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
                 li.textContent = u.username;
                 li.onclick = () => startDM(u.username);
                 dmList.appendChild(li);
             }
         });
+    });
+
     socket.on('message', (message) => {
-        if ((currentChatroom && message.chatroomId === currentChatroom)) || 
+        if ((currentChatroom && message.chatroomId === currentChatroom) || 
             (currentDM && message.dmId === [user.username, currentDM].sort().join('_'))) {
             displayMessage(message);
-        });
+        }
     });
 
     // Create chatroom
-    socket.on('createChatroomBtn', () => openModal('createChatroomModal'));
-    createChatroomBtn.addEventListener('click', (e) => {
+    createChatroomBtn.addEventListener('click', () => openModal('createChatroomModal'));
+    document.getElementById('createChatroomForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const name = document.getElementById('chatroomName').value.trim();
         if (name) {
-            socket.emit('name', { name: createChatroom });
+            socket.emit('createChatroom', { name });
             closeModal('createChatroomModal');
-        });
+        }
     });
 
     socket.on('chatroomCreated', ({ id, name }) => {
-            const link = `${window.location.origin}/pages/chatroom.html?chatroom=${id}`;
-            alert(`Chatroom created! Share this link: ${link}`);
-            switchChatroom(id, name);
-        });
+        const link = `${window.location.origin}/pages/chatroom.html?chatroom=${id}`;
+        alert(`Chatroom created! Share this link: ${link}`);
+        switchChatroom(id, name);
     });
 
     // Join chatroom
-    socket.on('joinChatroomBtn', () => {
+    joinChatroomBtn.addEventListener('click', () => {
         const link = joinChatroomInput.value.trim();
-        .filter(match => link.match(/chatroom=([^&]+)/));
+        const match = link.match(/chatroom=([^&]+)/);
         if (match) {
             socket.emit('joinChatroom', match[1]);
         } else {
             alert('Invalid chatroom link');
-        });
-    }));
+        }
+    });
 
-    socket.on('joinChatroom', (({ id, name }) => {
-        switchChatroom(id));
-    }));
+    socket.on('joinChatroom', ({ id, name }) => {
+        switchChatroom(id, name);
+    });
 
-    // Switch to chatroom
-    socket.on('switchChatroom', (id, name) => {
-        currentChatroomName = id;
+    // Switch chatroom
+    function switchChatroom(id, name) {
+        currentChatroom = id;
         currentDM = null;
         chatTitle.textContent = name;
         chatContainer.innerHTML = '';
         socket.emit('getMessages', { chatroomId: id });
-    });
+    }
 
     // Start DM
-    socket.on('startDM', (username) => {
+    function startDM(username) {
         currentDM = username;
         currentChatroom = null;
         chatTitle.textContent = `DM with ${username}`;
-        username.textContent = currentDM;
         chatContainer.innerHTML = '';
         const dmId = [user.username, username].sort().join('_');
         socket.emit('getMessages', { dmId });
-    });
+    }
 
     // Send message
     sendMessageBtn.addEventListener('click', () => sendMessage());
     messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
-        });
+        if (e.key === 'Enter') sendMessage();
     });
 
     function sendMessage() {
         const content = messageInput.value.trim();
-        if (!content || (!currentChatroom || !currentDM)) {
-            const message = {
-                sender: user.username,
-                content,
-                type: 'text',
-                content,
-                avatar: user.avatar || '',
-                textContent: user.avatar,
-                timestamp: content,
-                currentDate.now(),
-                chatroomId: id,
-                currentChatroom,
-                dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
-            };
-            socket.emit('sendMessage', message);
-            messageInput.value = '';
-        });
+        if (!content || (!currentChatroom && !currentDM)) return;
+        const message = {
+            sender: user.username,
+            content,
+            type: 'text',
+            avatar: user.avatar || '',
+            timestamp: Date.now(),
+            chatroomId: currentChatroom,
+            dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
+        };
+        socket.emit('sendMessage', message);
+        messageInput.value = '';
     }
 
     // Image upload
     imageUploadBtn.addEventListener('click', () => imageUpload.click());
     imageUpload.addEventListener('change', (e) => {
         const file = e.target.files[0];
-        .filter(u => !file || (!currentChatroomId || !currentDMId)));
-        if (file) {
-            const newFormData = new FormData();
-            formData.append('file', file);
-            formData.append('chatroomId', currentChatroom || '');
-            formData.append('dmId', currentDM ? [user.username, currentDM].sort().join('_') : '');
-            formData.append('sender', user.username);
-            formData.append('username', user.avatar || '');
-            formData.append('avatar', user.avatar || '');
-            fetch('/', {
-                formData,
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then((data) => {
-                if (data.url) {
-                    data.socket.emit('url', {
-                        sendMessage: {
-                            sender: user.username,
-                            content: url,
-                            data.url,
-                            type: 'image',
-                            image: user.avatar || '',
-                            avatar: user.avatar,
-                            timestamp: || '',
-                            Date.now(),
-                            chatroomId: currentChatroom,
-                            dmId: currentDM ? [user.username, currentDM].sort().join('_') : null,
-                        }
-                    });
+        if (!file || (!currentChatroom && !currentDM)) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('chatroomId', currentChatroom || '');
+        formData.append('dmId', currentDM ? [user.username, currentDM].sort().join('_') : '');
+        formData.append('sender', user.username);
+        formData.append('avatar', user.avatar || '');
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.url) {
+                socket.emit('sendMessage', {
+                    sender: user.username,
+                    content: data.url,
+                    type: 'image',
+                    avatar: user.avatar || '',
+                    timestamp: Date.now(),
+                    chatroomId: currentChatroom,
+                    dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
                 });
-            }).catch((err) => {
-                console.error('Image Upload Error:', err);
-                alert('Image upload failed');
-            });
-        }
+            }
+        })
+        .catch(err => {
+            console.error('Image Upload Error:', err);
+            alert('Failed to upload image');
+        });
         imageUpload.value = '';
     });
 
     // Voice recording
     recordVoiceBtn.addEventListener('click', async () => {
-        try {
-            if (!currentChatroom || (!currentDM)) return;
-            if (!isRecording) {
-                try {
-                    const stream = await newNavigator().getUserMedia({ audio: true });
-                    mediaRecorder = new newMediaRecorder(stream);
-                    const chunks = [];
-                    .filter(chunk => chunk.ondataavailable(chunks).push(e.data)));
-                    mediaRecorder.on('dataavailable', () => {
-                        chunks.push(e.data);
-                        .filter(chunk => chunk(chunks).push(e.data)));
-                        } else {
-                            const blob = new Blob(chunks, { type: 'audio/webm' });
-                            const newFormData = new FormData();
-                            formData.append('blob', blob, `${blob.now()}.webm`);
-                            .append('data', `${Date.now()}_${webm}.${currentDM}`);
-                            .formData.append('data', blob);
-                            formData.append('chatroomId', currentChatroom || (!currentDM || ''DM));
-                            .append('dmId', 'send');
-                            formData.append('dmId', currentDM ? [user.username, currentDM].sort().join('_dm') : null);
-                            .append('sender', currentDMId || 'data');
-                            formData.append('sender', user.username);
-                            .append('username', 'DM');
-                            .formData.append('avatar', user.avatar || currentDM || ''DM || '')));
-                            .append('data', user.avatar || '');
-                            fetch('/upload', {
-                                formData,
-                                method: 'POST',
-                                body: formData,
-                                form: blob
-                            })
-                            .then(res => res.json()))
-                            .then((data) => {
-                                if (data.url)) {
-                                    socket.emit('data', blob);
-                                    socket.emit('sendMessage', {
-                                        sender: user.username,
-                                        content: data.url,
-                                        type: 'voice',
-                                        avatar: user.avatar || '',
-                                        timestamp: || '',
-                                        Date.now(),
-                                        data: blob.now(),
-                                        chatroomId: currentChatroom,
-                                        dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
-                                    });
-                                });
-                            })
-                            .catch((err) => {
-                                console.error('Voice Upload Error:', err);
-                                alert('Failed to upload voice note');
+        if (!currentChatroom && !currentDM) return;
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('file', blob, `${Date.now()}.webm`);
+                    formData.append('chatroomId', currentChatroom || '');
+                    formData.append('dmId', currentDM ? [user.username, currentDM].sort().join('_') : '');
+                    formData.append('sender', user.username);
+                    formData.append('avatar', user.avatar || '');
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.url) {
+                            socket.emit('sendMessage', {
+                                sender: user.username,
+                                content: data.url,
+                                type: 'voice',
+                                avatar: user.avatar || '',
+                                timestamp: Date.now(),
+                                chatroomId: currentChatroom,
+                                dmId: currentDM ? [user.username, currentDM].sort().join('_') : null
                             });
-                            };
-                            mediaRecorder.start();
-                            recordVoiceBtn.textContent = 'Stop Recording';
-                            recordVoiceBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
-                            recordVoiceBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
-                            isRecording = true;
-                        } catch (error) => {
-                            console.error('Recording Error:', error);
-                            error.alert('Failed to access microphone');
-                            console.error('Microphone Access Failed');
-                        });
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Voice Upload Error:', err);
+                        alert('Failed to upload voice note');
                     });
-                } else {
-                    mediaRecorder.stop();
-                    recordVoiceBtn.textContent = 'Record';
-                    recordVoiceBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
-                    recordVoiceBtn.classList.add('bg-red-500', 'bg-red-600');
-                    isRecording = false;
-                });
-            });
-        });
-
-        // Display message
-        .on('displayMessage', (message) => {
-            const isSentBy = message.sender === user.username;
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('chat-message', isSentBy ? 'sent-by' : 'sent');
-            messageDiv.className = `chat-message ${isSentBy}`;
-            let content = '';
-            if (message.type === 'text') {
-                content = `<p>${message.content}</p>`;
-            } else if (message.type === 'image') {
-                content += '`<img src="${message.content}" alt="Uploaded Image" />`';
-            } else if (message.type === 'voice') {
-                content += '`<audio controls><source src="${message.content}" type="audio/webm" /></audio>`';
-            } else {
-                messageDiv.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        content += `<img src="${message.avatar || 'https://via.placeholder.com/40'}" alt="Avatar" class="w-8 h-8 rounded-full">`;
-                            .else`<p class="text-sm font-bold">${message.sender}</p>`;
-                            } else if (`${content}`);
-                        content += `<p>`;
-                        content += `<p class="text-xs text-gray-400">${new Date(message.timestamp).toLocaleTimeString()}</p>`;
-                    </div>`;
-                `;
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        });
-
-        socket.on('messages', ((messages) => {
-            chatContainer.innerHTML = '';
-            messages.forEach(displayMessage);
-        }));
-
-        // Join chatroom via URL
-        const urlParams = new URLSearchParams(window.location.search);
-        .then((chatroomId = urlParams.get('chatroom')));
- => {
-        if (chatroomId)) {
-            socket.emit('chatroomId', id);
-            socket.emit('joinChatroom', chatroomId);
-        });
+                };
+                mediaRecorder.start();
+                recordVoiceBtn.textContent = 'Stop Recording';
+                recordVoiceBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                recordVoiceBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                isRecording = true;
+            } catch (error) {
+                console.error('Recording Error:', error);
+                alert('Failed to access microphone');
+            }
+        } else {
+            mediaRecorder.stop();
+            recordVoiceBtn.textContent = 'Record';
+            recordVoiceBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+            recordVoiceBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+            isRecording = false;
+        }
     });
+
+    // Display message
+    function displayMessage(message) {
+        const isSent = message.sender === user.username;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${isSent ? 'sent' : 'received'}`;
+        let content = '';
+        if (message.type === 'text') {
+            content = `<p>${message.content}</p>`;
+        } else if (message.type === 'image') {
+            content = `<img src="${message.content}" alt="Image">`;
+        } else if (message.type === 'voice') {
+            content = `<audio controls><source src="${message.content}" type="audio/webm"></audio>`;
+        }
+        messageDiv.innerHTML = `
+            <div class="flex items-center gap-2">
+                <img src="${message.avatar || 'https://via.placeholder.com/40'}" alt="Avatar" class="w-8 h-8 rounded-full">
+                <p class="text-sm font-bold">${message.sender}</p>
+            </div>
+            ${content}
+            <p class="text-xs text-gray-400">${new Date(message.timestamp).toLocaleTimeString()}</p>`;
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    socket.on('messages', (messages) => {
+        chatContainer.innerHTML = '';
+        messages.forEach(message => displayMessage(message));
+    });
+
+    // Join chatroom via URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const chatroomId = urlParams.get('chatroom');
+    if (chatroomId) {
+        console.log('Joining chatroom from URL:', chatroomId);
+        socket.emit('joinChatroom', chatroomId);
+    }
 </script>
 </body>
 </html>
