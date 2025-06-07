@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Me ID</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap">
+    <style>
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            transition: background 0.3s;
+            background: linear-gradient(to bottom right, #000000, #1a202c, #2b6cb0);
+            color: white;
+        }
+        .glitch {
+            position: relative;
+            font-size: 4rem;
+            text-transform: uppercase;
+            color: white;
+            text-shadow: 0 0 5px #fff, 0 0 10px #00ffff, 0 0 15px #00ffff;
+            animation: glitchText 1.5s infinite;
+        }
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            color: #ff00ff;
+            animation: glitchEffect 1.5s infinite;
+        }
+        .glitch::before { z-index: -1; left: -2px; top: -2px; }
+        .glitch::after { z-index: -2; left: 2px; top: 2px; }
+        @keyframes glitchText {
+            0%, 100% { transform: none; }
+            20% { transform: skew(5deg, 5deg); }
+            40% { transform: skew(-5deg, -5deg); }
+            60% { transform: skew(5deg, -5deg); }
+            80% { transform: skew(-5deg, 5deg); }
+        }
+        @keyframes glitchEffect {
+            0% { clip-path: inset(0% 0% 10% 0%); }
+            20% { clip-path: inset(10% 0% 0% 0%); }
+            40% { clip-path: inset(0% 10% 10% 0%); }
+            60% { clip-path: inset(10% 0% 10% 10%); }
+            80% { clip-path: inset(0% 0% 10% 10%); }
+            100% { clip-path: inset(10% 10% 0% 0%); }
+        }
+        .logo-animation {
+            width: 100px;
+            height: 100px;
+            animation: spinLogo 1.5s infinite linear;
+        }
+        @keyframes spinLogo {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: #1a202c;
+            margin: 5% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <div class="fixed top-0 left-0 w-full h-full bg-black flex flex-col justify-center items-center transition-opacity duration-500" id="loadingScreen">
+        <img src="https://files.catbox.moe/d15q3r.png" alt="Stream Me ID Logo" class="logo-animation">
+        <h1 class="glitch text-center mt-4" data-text="STREAM ME ID">STREAM ME ID</h1>
+        <div class="w-12 h-12 border-4 border-gray-800 border-t-cyan-400 rounded-full animate-spin mt-4"></div>
+    </div>
+    <div class="opacity-0 transition-opacity duration-500 flex-1" id="mainContent">
+        <header class="bg-black bg-opacity-80 border-b border-gray-700 sticky top-0 z-50">
+            <div class="max-w-screen-xl mx-auto flex items-center justify-between p-4">
+                <div class="text-2xl font-extrabold bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text">
+                    🎵 Stream Me ID
+                </div>
+                <div class="flex gap-2 items-center">
+                    <button id="loginBtn" class="px-4 py-2 bg-blue-500 text-black font-bold rounded-full hover:bg-blue-600">Login</button>
+                    <button id="signupBtn" class="px-4 py-2 bg-green-500 text-black font-bold rounded-full hover:bg-green-600">Signup</button>
+                    <button id="profileBtn" class="px-4 py-2 bg-purple-500 text-black font-bold rounded-full hover:bg-purple-600">Profile</button>
+                    <a href="/pages/chatroom.html" class="px-4 py-2 bg-cyan-400 text-black font-bold rounded-full hover:bg-cyan-500">Chatroom</a>
+                </div>
+            </div>
+        </header>
+        <main class="max-w-screen-xl mx-auto p-4 text-center">
+            <h1 class="text-4xl font-bold text-cyan-400 mb-6">Welcome to Stream Me ID</h1>
+            <p class="text-lg">Connect with friends, create chatrooms, and share media in real-time!</p>
+            <button onclick="window.location.href='/pages/chatroom.html'" class="mt-6 px-6 py-3 bg-gradient-to-r from-cyan-400 to-purple-500 text-black font-bold rounded-full hover:from-cyan-500 hover:to-purple-600">Join the Chat</button>
+        </main>
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Login</h2>
+                <form id="loginForm">
+                    <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <button type="submit" class="w-full p-3 bg-blue-500 text-black font-bold rounded-lg hover:bg-blue-600">Login</button>
+                </form>
+                <button class="w-full p-3 mt-4 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600" onclick="closeModal('loginModal')">Close</button>
+            </div>
+        </div>
+        <!-- Signup Modal -->
+        <div id="signupModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Signup</h2>
+                <form id="signupForm">
+                    <input type="text" id="signupUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <input type="email" id="signupEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Signup</button>
+                </form>
+                <button class="w-full p-3 mt-4 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600" onclick="closeModal('signupModal')">Close</button>
+            </div>
+        </div>
+        <!-- Profile Modal -->
+        <div id="profileModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">Profile</h2>
+                <form id="profileForm">
+                    <div class="flex justify-center mb-4">
+                        <img src="" id="avatarPreview" class="w-24 h-24 rounded-full object-cover hidden">
+                    </div>
+                    <input type="file" id="avatar" accept="image/*" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg">
+                    <input type="text" id="profileUsername" placeholder="Username" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <input type="email" id="profileEmail" placeholder="Email" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400">
+                    <textarea id="profileBio" placeholder="Bio" class="w-full p-3 mb-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-400"></textarea>
+                    <button type="submit" class="w-full p-3 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600">Save</button>
+                </form>
+                <button id="logout" class="w-full p-3 mt-4 bg-red-500 text-black font-bold rounded-lg hover:bg-red-600">Logout</button>
+                <button class="w-full p-3 mt-4 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600" onclick="closeModal('profileModal')">Close</button>
+            </div>
+        </div>
+    </div>
+<script>
+    const loadingScreen = document.getElementById('loadingScreen');
+    const mainContent = document.getElementById('mainContent');
+    const loginBtn = document.getElementById('loginBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    const profileBtn = document.getElementById('profileBtn');
+
+    // Initialize
+    setTimeout(() => {
+        loadingScreen.classList.add('opacity-0', 'pointer-events-none');
+        mainContent.classList.remove('opacity-0');
+        mainContent.classList.add('opacity-100');
+    }, 2000);
+
+    // Modal handling
+    function openModal(modalId) {
+        document.getElementById(modalId).style.display = 'block';
+    }
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    // Login (simple email check for demo)
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && user.email === email) {
+            alert('Logged in successfully!');
+            closeModal('loginModal');
+        } else {
+            alert('User not found. Please sign up.');
+        }
+    });
+
+    // Signup
+    document.getElementById('signupForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('signupUsername').value;
+        const email = document.getElementById('signupEmail').value;
+        if (username && email) {
+            localStorage.setItem('user', JSON.stringify({ username, email, bio: '', avatar: '' }));
+            alert('Signed up successfully! Please complete your profile.');
+            closeModal('signupModal');
+            openModal('profileModal');
+            document.getElementById('profileUsername').value = username;
+            document.getElementById('profileEmail').value = email;
+        } else {
+            alert('Please fill in all fields.');
+        }
+    });
+
+    // Profile
+    profileBtn.addEventListener('click', () => {
+        const user = JSON.parse(localStorage.getItem('user')) || { username: '', email: '', bio: '', avatar: '' };
+        document.getElementById('profileUsername').value = user.username;
+        document.getElementById('profileEmail').value = user.email;
+        document.getElementById('profileBio').value = user.bio;
+        const avatarPreview = document.getElementById('avatarPreview');
+        if (user.avatar) {
+            avatarPreview.src = user.avatar;
+            avatarPreview.classList.remove('hidden');
+        }
+        openModal('profileModal');
+    });
+
+    document.getElementById('avatar').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById('avatarPreview').src = reader.result;
+                document.getElementById('avatarPreview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    document.getElementById('profileForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const user = {
+            username: document.getElementById('profileUsername').value,
+            email: document.getElementById('profileEmail').value,
+            bio: document.getElementById('profileBio').value,
+            avatar: document.getElementById('avatarPreview').src
+        };
+        localStorage.setItem('user', JSON.stringify(user));
+        alert('Profile updated!');
+        closeModal('profileModal');
+    });
+
+    document.getElementById('logout').addEventListener('click', () => {
+        localStorage.removeItem('user');
+        alert('Logged out!');
+        closeModal('profileModal');
+    });
+
+    loginBtn.addEventListener('click', () => openModal('loginModal'));
+    signupBtn.addEventListener('click', () => openModal('signupModal'));
+</script>
+</body>
+</html>
