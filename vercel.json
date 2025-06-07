@@ -1,37 +1,42 @@
 {
-    "version": "2",
-    "builds": [
-        {
-            "src": "server.js",
-            "use": "@vercel/node"
-        },
-        {
-            "src": "pages",
-            "use": "@vercel/static"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/pages/(.*)",
-            "dest": "/pages/$1"
-        },
-        {
-            "src": "/uploads/(.*)",
-            "dest": "/uploads/$1"
-        },
-        {
-            "src": "/upload",
-            "dest": "/server.js"
-        },
-        {
-            "src": "/socket.io/(.*)",
-            "dest": "/server.js"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/server.js"
-        }
-    ],
-    "env": {
-        "NODE_ENV": "production"
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "pages/**/*",
+      "use": "@vercel/static"
     }
+  ],
+  "routes": [
+    {
+      "src": "/pages/(.*)",
+      "dest": "/pages/$1"
+    },
+    {
+      "src": "/uploads/(.*)",
+      "dest": "/uploads/$1"
+    },
+    {
+      "src": "/upload",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/socket.io/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/",
+      "dest": "/pages/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
